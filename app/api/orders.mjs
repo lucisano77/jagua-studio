@@ -1,10 +1,17 @@
 import { createClient } from '@supabase/supabase-js';
 import { validateOrderData } from './utils/validator.mjs';
 
-console.log("Has Anon Key?", !!process.env.SUPABASE_ANON_KEY);
-console.log("Has Service Key?", !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(
+  process.env.SUPABASE_URL, 
+  process.env.SUPABASE_SERVICE_ROLE_KEY, 
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+})
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);export default async function handler(req, res) {
+export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
     const orderData = req.body;
