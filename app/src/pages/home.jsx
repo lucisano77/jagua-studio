@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/authContext';
 import { supabase } from '../supabaseClient'; // Adjust path if needed
 
 export default function Home() {
