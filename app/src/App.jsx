@@ -13,6 +13,7 @@ export default function App() {
           {/* Public Routes */}
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/admin" element={<AdminDashboard />} />
           
           {/* Protected Routes (Requires Login) */}
           <Route path="/checkout" element={
@@ -20,6 +21,7 @@ export default function App() {
               <Checkout />
             </ProtectedRoute>
           } />
+
         </Routes>
       </Router>
     </AuthProvider>
