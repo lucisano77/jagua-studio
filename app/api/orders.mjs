@@ -1,5 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
-import { validateOrderData } from './utils/validator.mjs';
+import { createClient, Provider } from '@supabase/supabase-js'
+import { validateOrderData } from './utils/validator.mjs'
+
 
 const supabase = createClient(
   process.env.SUPABASE_URL, 
@@ -11,14 +12,21 @@ const supabase = createClient(
     }
 })
 
-export default async function handler(req, res) {
-    if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
+await supabase.auth.signInWithOAuth({
+  provider,
+  options: {
+    redirectTo: ''
+  }
+})
 
-    const orderData = req.body;
-    const validationErrors = validateOrderData(orderData);
+export default async function handler(req, res) {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' })
+
+    const orderData = req.body
+    const validationErrors = validateOrderData(orderData)
     
     if (validationErrors.length > 0) {
-        return res.status(400).json({ errors: validationErrors });
+        return res.status(400).json({ errors: validationErrors })
     }
 
     try {
@@ -33,10 +41,10 @@ export default async function handler(req, res) {
                 total_amount: orderData.total_amount
             }])
             .select()
-            .single();
+            .single()
 
-        if (error) throw error;
-        return res.status(200).json({ success: true, orderId: order.id });
+        if (error) throw error
+        return res.status(200).json({ success: true, orderId: order.id })
 
     } catch (error) {
       console.error("SUPABASE INSERTION CRASH:", error)
