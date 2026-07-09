@@ -1,105 +1,64 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
 export default function AdminDashboard() {
-  const [formData, setFormData] = useState({
-    name: '',
-    category: 'Jagua', 
-    price: '',
-    description: ''
-  });
-  const [loading, setLoading] = useState(false);
+  const [orders, setOrders] = useState([]);
+  const [productForm, setProductForm] = useState({ name: '', category: 'Jagua', price: '', description: '' });
 
-  const handleAddNewProduct = async (e) => {
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  async function fetchOrders() {
+    const { data } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
+    setOrders(data || []);
+  }
+
+  const handleAddProduct = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    await supabase.from('products').insert([{ ...productForm, price: parseFloat(productForm.price) }]);
+    alert("Product added!");
+    setProductForm({ name: '', category: 'Jagua', price: '', description: '' });
+  };
 
-    try {
-      const { error } = await supabase
-        .from('products')
-        .insert([
-          { 
-            name: formData.name, 
-            category: formData.category, 
-            price: parseFloat(formData.price),
-            description: formData.description 
-          }
-        ]);
-
-      if (error) throw error;
-
-      alert("Product added successfully!");
-      setFormData({ name: '', category: 'Jagua', price: '', description: '' });
-    } catch (error) {
-      console.error("Error adding product:", error.message);
-      alert(`Failed to add product: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
+  const handleUpdateStatus = async (orderId, newStatus) => {
+    await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
+    fetchOrders();
   };
 
   return (
-    <div className="admin-container" style={{ maxWidth: '500px', margin: '40px auto', padding: '20px' }}>
-      <h2 className="text-2xl font-serif mb-6">Admin Panel: Add New Product</h2>
-      
-      <form onSubmit={handleAddNewProduct} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-        <div>
-          <label style={{ display: 'block', marginBottom: '5px' }}>Product Name</label>
-          <input 
-            type="text" 
-            placeholder="e.g., Premium Jagua Gel"
-            value={formData.name} 
-            onChange={(e) => setFormData({...formData, name: e.target.value})} 
-            required 
-            style={{ width: '100%', padding: '8px' }}
-          />
-        </div>
-
-        <div>
-          <label style={{ display: 'block', marginBottom: '5px' }}>Category</label>
-          <select 
-            value={formData.category} 
-            onChange={(e) => setFormData({...formData, category: e.target.value})}
-            style={{ width: '100%', padding: '8px' }}
-          >
+    <div className="max-w-4xl mx-auto p-6 space-y-12">
+      <section className="border p-6 rounded-2xl">
+        <h2 className="text-xl font-serif mb-4">Add Product</h2>
+        <form onSubmit={handleAddProduct} className="grid grid-cols-2 gap-4">
+          <input type="text" placeholder="Name" value={productForm.name} onChange={e => setProductForm({...productForm, name: e.target.value})} required className="border p-2 rounded" />
+          <select value={productForm.category} onChange={e => setProductForm({...productForm, category: e.target.value})} className="border p-2 rounded">
             <option value="Jagua">Jagua</option>
             <option value="Henna">Henna</option>
             <option value="Tools">Tools</option>
           </select>
-        </div>
+          <input type="number" placeholder="Price" value={productForm.price} onChange={e => setProductForm({...productForm, price: e.target.value})} required className="border p-2 rounded" />
+          <button type="submit" className="bg-black text-white rounded">Upload</button>
+        </form>
+      </section>
 
-        <div>
-          <label style={{ display: 'block', marginBottom: '5px' }}>Price (HKD)</label>
-          <input 
-            type="number" 
-            step="0.01"
-            placeholder="0.00"
-            value={formData.price} 
-            onChange={(e) => setFormData({...formData, price: e.target.value})} 
-            required 
-            style={{ width: '100%', padding: '8px' }}
-          />
+      <section className="border p-6 rounded-2xl">
+        <h2 className="text-xl font-serif mb-4">Manage Orders</h2>
+        <div className="space-y-4">
+          {orders.map(order => (
+            <div key={order.id} className="border p-4 rounded flex justify-between items-center">
+              <div>
+                <p className="font-bold">{order.customer_name} (${Number(order.total_amount).toFixed(2)})</p>
+                <p className="text-sm text-gray-500">Status: <span className="capitalize font-semibold">{order.status}</span></p>
+              </div>
+              <div className="space-x-2">
+                <button onClick={() => handleUpdateStatus(order.id, 'paid')} className="bg-green-100 text-green-800 px-3 py-1 rounded text-sm">Mark Paid</button>
+                <button onClick={() => handleUpdateStatus(order.id, 'delivering')} className="bg-blue-100 text-blue-800 px-3 py-1 rounded text-sm">Mark Delivering</button>
+              </div>
+            </div>
+          ))}
         </div>
-
-        <div>
-          <label style={{ display: 'block', marginBottom: '5px' }}>Description</label>
-          <textarea 
-            placeholder="Product details..."
-            value={formData.description} 
-            onChange={(e) => setFormData({...formData, description: e.target.value})} 
-            rows="3"
-            style={{ width: '100%', padding: '8px' }}
-          />
-        </div>
-
-        <button 
-          type="submit" 
-          disabled={loading}
-          style={{ padding: '12px', background: 'black', color: 'white', border: 'none', cursor: 'pointer' }}
-        >
-          {loading ? 'Adding...' : 'Upload Product to Store'}
-        </button>
-      </form>
+      </section>
     </div>
   );
 }

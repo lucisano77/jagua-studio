@@ -1,56 +1,47 @@
-import { createClient, Provider } from '@supabase/supabase-js'
-import { validateOrderData } from './utils/validator.mjs'
-
+import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
-  process.env.SUPABASE_URL, 
-  process.env.SUPABASE_SERVICE_ROLE_KEY, 
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-})
-
-await supabase.auth.signInWithOAuth({
-  provider,
-  options: {
-    redirectTo: ''
-  }
-})
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  { auth: { autoRefreshToken: false, persistSession: false } }
+);
 
 export default async function handler(req, res) {
-    if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' })
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-    const orderData = req.body
-    const validationErrors = validateOrderData(orderData)
-    
-    if (validationErrors.length > 0) {
-        return res.status(400).json({ errors: validationErrors })
-    }
+  const { customer_name, customer_email, customer_phone, customer_address, payment_method, total_amount, cart_items } = req.body;
 
-    try {
-        const { data: order, error } = await supabase
-            .from('orders')
-            .insert([{
-                customer_name: orderData.name,
-                customer_email: orderData.email,
-                customer_phone: orderData.phone,
-                customer_address: orderData.address,
-                payment_method: orderData.payment_method,
-                total_amount: orderData.total_amount
-            }])
-            .select()
-            .single()
+  try {
+    // 1. Write core transaction record to orders
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .insert([{
+        customer_name,
+        customer_email,
+        customer_phone,
+        customer_address,
+        payment_method,
+        total_amount,
+        status: 'not paid'
+      }])
+      .select()
+      .single();
 
-        if (error) throw error
-        return res.status(200).json({ success: true, orderId: order.id })
+    if (orderError) throw orderError;
 
-    } catch (error) {
-      console.error("SUPABASE INSERTION CRASH:", error)
-      return res.status(500).json({
-        error: 'Internal Server Error',
-        details: error.message || error
-      })
-    }
+    // 2. Map and write detailed items array into order_items
+    const itemRows = cart_items.map(item => ({
+      order_id: order.id,
+      product_id: item.product_id,
+      quantity: item.quantity,
+      price_at_time: item.products.price
+    }));
+
+    const { error: itemsError } = await supabase.from('order_items').insert(itemRows);
+    if (itemsError) throw itemsError;
+
+    return res.status(200).json({ success: true, orderId: order.id });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
 }
